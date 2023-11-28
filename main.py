@@ -46,11 +46,12 @@ substracted = images_grayscale[0] - average_image
 # cv2.destroyAllWindows()
 cv2.imwrite(os.path.join(save_path, 'substracted.jpg'), substracted)
 
+# Setting to 0 values outside [lower_threshold, upper_threshold], trying to ommit extremes
 lower_threshold, upper_threshold = 25, 220
 ranged_mask = cv2.inRange(substracted, lower_threshold, upper_threshold)
 ranged_image = substracted.copy()
 ranged_image[ranged_mask==0] = 0
-cv2.imshow('Range', ranged_image)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-cv2.imwrite(os.path.join(save_path, 'ranged.jpg'), ranged_image)
+# cv2.imshow('Range', ranged_image)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
+cv2.imwrite(os.path.join(save_path, 'ranged.jpg'),ranged_image)
