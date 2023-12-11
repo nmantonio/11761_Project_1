@@ -1,6 +1,9 @@
-import cv2
-from matplotlib import pyplot as plt
 from abc import ABC, abstractmethod
+
+import cv2
+import numpy as np
+from matplotlib import pyplot as plt
+from sklearn.cluster import DBSCAN
 
 
 class GenericDetector(ABC):
@@ -38,7 +41,7 @@ class GenericDetector(ABC):
 
 class SimpleBlobDetector(GenericDetector):
     def __init__(self,
-                 params = None):
+                 params=None):
         super().__init__()
         self.params = cv2.SimpleBlobDetector_Params() if params is None else params
         self.detector = cv2.SimpleBlobDetector_create(params)
@@ -50,6 +53,7 @@ class SimpleBlobDetector(GenericDetector):
         # Convert keypoints to (x, y) coordinates
         return [(int(k.pt[0]), int(k.pt[1])) for k in keypoints]
 
+
 class HOGSvmDetector:
     def __init__(self):
         # Initialize HOG descriptor with default people detector
@@ -59,10 +63,10 @@ class HOGSvmDetector:
     def detect(self, image):
         # Detect people in the image
         boxes, _ = self.hog.detectMultiScale(image, winStride=(8, 8), padding=(8, 8), scale=1.05)
-        center_points = [(int(x + w/2), int(y + h/2)) for (x, y, w, h) in boxes]
+        center_points = [(int(x + w / 2), int(y + h / 2)) for (x, y, w, h) in boxes]
 
         return center_points
-    
+
 
 class HaarCascadeDetector(GenericDetector):
     def __init__(self, cascade_path):
@@ -75,6 +79,7 @@ class HaarCascadeDetector(GenericDetector):
 
         # Extract the top-left corner coordinates of each detected object
         return [(x, y) for (x, y, w, h) in objects]
+
 
 class ContourDetector(GenericDetector):
     def __init__(self, threshold=200):
@@ -99,3 +104,41 @@ class ContourDetector(GenericDetector):
                 objects.append((cx, cy))
 
         return objects
+
+
+class DBSCANHumanDetector(GenericDetector):
+    def __init__(self, eps=30, min_samples=5):
+        super().__init__()
+        self.eps = eps
+        self.min_samples = min_samples
+
+    def detect(self, image):
+        # image = cv2.Canny(image, 100, 255)
+        # Extract features (e.g., points of interest)
+        features = self.extract_features(image)
+
+        # Apply DBSCAN clustering
+        clustering = DBSCAN(eps=self.eps, min_samples=self.min_samples).fit(features)
+
+        # Calculate centroids of clusters
+        centroids = self.calculate_centroids(features, clustering.labels_)
+
+        return centroids
+
+    def extract_features(self, image):
+        # Implement feature extraction here
+        # Example: Extract coordinates of non-zero points
+        points = np.column_stack(np.where(image > 0))
+        points = np.flip(points, axis=1)
+        return points
+
+    def calculate_centroids(self, features, labels):
+        centroids = []
+        for cluster_id in np.unique(labels):
+            if cluster_id != -1:  # Ignoring noise points
+                # Extract points belonging to the current cluster
+                points_in_cluster = features[labels == cluster_id]
+                # Calculate the centroid
+                centroid = np.mean(points_in_cluster, axis=0).astype(int)
+                centroids.append(tuple(centroid))
+        return centroids

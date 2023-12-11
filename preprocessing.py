@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import List
 
 import cv2
 import numpy as np
@@ -27,7 +26,8 @@ class BackgroundPreprocessor(ImagePreprocessor):
     def __init__(self, background_points, width=1920, height=1080):
         self.background_points = background_points
         self.background_mask = np.zeros((height, width), dtype=np.uint8)
-        cv2.fillPoly(self.background_mask, [self.background_points], color=255)
+        for each in self.background_points:
+            cv2.fillPoly(self.background_mask, [each], color=255)
         self.background_mask = cv2.bitwise_not(self.background_mask)
 
     def preprocess(self, image_grayscale=None, image_color=None):
@@ -66,7 +66,9 @@ class ThresholdingPreprocessor(ImagePreprocessor):
 
 
 class WaterThresholdingPreprocessor(ImagePreprocessor):
-    def __init__(self, lower_blue=[90, 40, 40], upper_blue=[130, 255, 255]) -> None:
+    def __init__(self,
+                 lower_blue=np.array([90, 40, 40]),
+                 upper_blue=np.array([130, 255, 255])) -> None:
         self.lower_blue = lower_blue
         self.upper_blue = upper_blue
 
@@ -79,7 +81,7 @@ class WaterThresholdingPreprocessor(ImagePreprocessor):
         removed_sea = image_grayscale.copy()
         removed_sea[sea_mask > 0] = [0]
 
-        return sea_mask
+        return removed_sea
 
 
 class SandThresholdingPreprocessor(ImagePreprocessor):
@@ -101,7 +103,6 @@ class SobelPreprocessor(ImagePreprocessor):
         self.gradient_threshold = gradient_threshold
 
     def preprocess(self, image_grayscale=None, image_color=None):
-
         if image_grayscale is None:
             raise Exception("No input grayscale image!")
         sobel_x = cv2.Sobel(image_grayscale, cv2.CV_64F, 1, 0, ksize=3)
@@ -117,6 +118,14 @@ class SobelPreprocessor(ImagePreprocessor):
         return result
 
 
+class CLAHEPreprocessor(ImagePreprocessor):
+    def __init__(self, clipLimit=2.0, tileGridSize=(8, 8)):
+        self.clahe = cv2.createCLAHE(clipLimit=clipLimit, tileGridSize=tileGridSize)
+
+    def preprocess(self, image_grayscale=None, image_color=None):
+        return self.clahe.apply(image_grayscale)
+
+
 class OtsuPreprocessor(ImagePreprocessor):
     def __init__(self) -> None:
         pass
@@ -129,18 +138,18 @@ class OtsuPreprocessor(ImagePreprocessor):
 
 
 class PreprocessingPipeline(ImagePreprocessor):
-    def __init__(self, processors):
+    def __init__(self, processors) -> None:
         self.processors = processors
 
     def preprocess(self, image_grayscale=None, image_color=None):
         image = image_grayscale.copy()
         for processor in self.processors:
-            image = processor.preprocess(image_grayscale, image_color)
+            image = processor.preprocess(image, image_color)
         return image
 
 
 class MultipleANDBitProcessingPipeline(ImagePreprocessor):
-    def __int__(self, pipelines: List[PreprocessingPipeline]):
+    def __init__(self, pipelines) -> None:
         self.pipelines = pipelines
 
     def preprocess(self, image_grayscale=None, image_color=None):
