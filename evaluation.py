@@ -92,6 +92,8 @@ class PeopleCount:
 
     def show_predictions(self, image, ground_truth, detections):
         fig, axes = plt.subplots(1, 2, figsize=(16, 12))
+        axes[0].set_axis_off()
+        axes[1].set_axis_off()
         prepro_img = self.preprocessing_pipeline.preprocess(cv2.cvtColor(image.copy(), cv2.COLOR_BGR2GRAY),
                                                             cv2.cvtColor(image.copy(), cv2.COLOR_RGB2BGR))
         axes[0].imshow(prepro_img, cmap='gray')
